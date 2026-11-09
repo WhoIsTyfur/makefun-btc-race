@@ -8,6 +8,8 @@ import { createInterface } from "node:readline";
 const LOOKBACK = 30; // bars in the breakout channel
 const ENTRY_MARGIN = 0.0025; // close must clear the channel high by this fraction
 const TRAIL = 0.006; // trailing stop from the highest close since entry
+const LOCK_GAIN = 0.01; // once the peak is this far above entry...
+const LOCK_TRAIL = 0.0035; // ...tighten the trail to lock the gain in
 const HARD_STOP = 0.015; // stop under the entry close
 const COOLDOWN = 30; // bars to wait after an exit before re-entering
 const FALLBACK_BAR = 180; // nothing filled by this bar: take a token trade
@@ -67,7 +69,8 @@ class Bot {
 
     if (this.inTrade && qty !== "0") {
       if (close > this.peak) this.peak = close;
-      if (close < this.peak * (1 - TRAIL) || close < this.entry * (1 - HARD_STOP)) {
+      const trail = this.peak >= this.entry * (1 + LOCK_GAIN) ? LOCK_TRAIL : TRAIL;
+      if (close < this.peak * (1 - trail) || close < this.entry * (1 - HARD_STOP)) {
         orders.push({ side: "sell", client_id: this.nextId("s"), symbol: this.symbol, qty, max_slippage_bps: SELL_SLIP_BPS });
       }
       return orders;
